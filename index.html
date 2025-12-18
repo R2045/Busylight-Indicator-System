@@ -2,54 +2,51 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Status Controller</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Office Status</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { background-color: #0f172a; color: white; touch-action: manipulation; }
-        .btn-status { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
-        .btn-status:active { transform: scale(0.95); opacity: 0.8; }
+        body { background-color: #0f172a; color: white; }
+        .btn-status { transition: all 0.2s ease; border: 2px solid #1e293b; }
         
-        /* High-contrast active states */
-        .ring-green { box-shadow: 0 0 20px rgba(16, 185, 129, 0.4); border: 3px solid #10b981; }
-        .ring-yellow { box-shadow: 0 0 20px rgba(245, 158, 11, 0.4); border: 3px solid #f59e0b; }
-        .ring-red { box-shadow: 0 0 20px rgba(239, 68, 68, 0.4); border: 3px solid #ef4444; }
+        /* Matching the requested speeds with CSS animations */
+        .blink-fast { animation: blink 0.4s infinite; }
+        .blink-slow { animation: blink 1.6s infinite; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+        .active-green { border-color: #10b981; background-color: #064e3b; }
+        .active-yellow { border-color: #f59e0b; background-color: #78350f; }
+        .active-red { border-color: #ef4444; background-color: #7f1d1d; }
     </style>
 </head>
-<body class="min-h-screen flex flex-col items-center justify-center p-4">
-    <div class="w-full max-w-sm space-y-6">
-        <div class="text-center mb-4">
-            <h1 class="text-2xl font-bold tracking-tight">Availability</h1>
-            <p class="text-slate-400 text-sm">Update external LEDs</p>
-        </div>
+<body class="min-h-screen flex items-center justify-center p-6">
+    <div class="max-w-xs w-full space-y-4">
+        <h1 class="text-center text-xl font-bold mb-6">Set Availability</h1>
 
-        <button onclick="setStatus('available')" id="available-btn" class="btn-status w-full p-8 rounded-3xl bg-slate-800 flex flex-col items-center gap-2">
-            <div class="w-3 h-3 bg-green-500 rounded-full shadow-[0_0_10px_#10b981]"></div>
-            <span class="text-xl font-bold">Available</span>
-            <span class="text-xs text-slate-400">Open Door Policy</span>
+        <button onclick="setStatus('available')" id="available-btn" class="btn-status w-full p-6 rounded-2xl bg-slate-800 flex flex-col items-center">
+            <div class="w-4 h-4 bg-green-500 rounded-full mb-2"></div>
+            <span class="font-bold text-green-400">AVAILABLE</span>
+            <span class="text-xs text-slate-400 font-medium">Solid Green</span>
         </button>
 
-        <button onclick="setStatus('busy-talkable')" id="busy-btn" class="btn-status w-full p-8 rounded-3xl bg-slate-800 flex flex-col items-center gap-2">
-            <div class="w-3 h-3 bg-yellow-500 rounded-full shadow-[0_0_10px_#f59e0b]"></div>
-            <span class="text-xl font-bold text-yellow-500">Limited</span>
-            <span class="text-xs text-slate-400">Knock first</span>
+        <button onclick="setStatus('busy-talkable')" id="busy-btn" class="btn-status w-full p-6 rounded-2xl bg-slate-800 flex flex-col items-center">
+            <div class="w-4 h-4 bg-yellow-500 rounded-full mb-2 blink-fast"></div>
+            <span class="font-bold text-yellow-400">BUSY</span>
+            <span class="text-xs text-slate-400 font-medium">Fast Blink Yellow</span>
         </button>
 
-        <button onclick="setStatus('dnd')" id="dnd-btn" class="btn-status w-full p-8 rounded-3xl bg-slate-800 flex flex-col items-center gap-2">
-            <div class="w-3 h-3 bg-red-500 rounded-full shadow-[0_0_10px_#ef4444] animate-pulse"></div>
-            <span class="text-xl font-bold text-red-500">Deep Focus</span>
-            <span class="text-xs text-slate-400">Do Not Disturb</span>
+        <button onclick="setStatus('dnd')" id="dnd-btn" class="btn-status w-full p-6 rounded-2xl bg-slate-800 flex flex-col items-center">
+            <div class="w-4 h-4 bg-red-500 rounded-full mb-2 blink-slow"></div>
+            <span class="font-bold text-red-400">DND</span>
+            <span class="text-xs text-slate-400 font-medium">Slow Blink Red</span>
         </button>
-
-        <p id="msg" class="text-center text-xs text-slate-500 pt-4 uppercase tracking-widest"></p>
     </div>
 
     <script>
         async function setStatus(status) {
-            document.querySelectorAll('.btn-status').forEach(b => b.classList.remove('ring-green', 'ring-yellow', 'ring-red', 'bg-slate-700'));
-            
-            const colorMap = { 'available': 'ring-green', 'busy-talkable': 'ring-yellow', 'dnd': 'ring-red' };
-            document.getElementById(`${status === 'busy-talkable' ? 'busy' : status}-btn`).classList.add(colorMap[status], 'bg-slate-700');
+            document.querySelectorAll('.btn-status').forEach(b => b.classList.remove('active-green', 'active-yellow', 'active-red'));
+            const map = { 'available': 'active-green', 'busy-talkable': 'active-yellow', 'dnd': 'active-red' };
+            document.getElementById(`${status === 'busy-talkable' ? 'busy' : status}-btn`).classList.add(map[status]);
 
             try {
                 await fetch('http://localhost:5000/set_led', {
@@ -57,10 +54,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ status: status })
                 });
-                document.getElementById('msg').textContent = "Status Synced";
-            } catch (e) {
-                document.getElementById('msg').textContent = "Server Offline";
-            }
+            } catch (e) { console.error("Server Down"); }
         }
     </script>
 </body>
