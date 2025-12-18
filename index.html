@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Office Availability System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        .status-card { transition: all 0.3s ease; cursor: pointer; border: 4px solid transparent; }
+        .status-card:hover { transform: translateY(-5px); }
+        .active-green { border-color: #10b981; background-color: #ecfdf5; }
+        .active-yellow { border-color: #f59e0b; background-color: #fffbeb; }
+        .active-red { border-color: #ef4444; background-color: #fef2f2; }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-6">
+    <div class="max-w-md w-full">
+        <header class="text-center mb-10">
+            <h1 class="text-3xl font-bold text-gray-900">Room Status</h1>
+            <p class="text-gray-500">Tap to update your availability</p>
+        </header>
+
+        <div class="space-y-4">
+            <div onclick="setStatus('available')" id="available-card" class="status-card bg-white p-6 rounded-2xl shadow-md flex items-center">
+                <div class="w-4 h-4 bg-green-500 rounded-full mr-4"></div>
+                <div>
+                    <h2 class="text-xl font-bold text-green-700">Available</h2>
+                    <p class="text-sm text-green-600">Come on in!</p>
+                </div>
+            </div>
+
+            <div onclick="setStatus('busy-talkable')" id="busy-talkable-card" class="status-card bg-white p-6 rounded-2xl shadow-md flex items-center">
+                <div class="w-4 h-4 bg-yellow-500 rounded-full mr-4"></div>
+                <div>
+                    <h2 class="text-xl font-bold text-yellow-700">Limited</h2>
+                    <p class="text-sm text-yellow-600">Only if you really need me</p>
+                </div>
+            </div>
+
+            <div onclick="setStatus('dnd')" id="dnd-card" class="status-card bg-white p-6 rounded-2xl shadow-md flex items-center">
+                <div class="w-4 h-4 bg-red-500 rounded-full mr-4 border-2 border-red-200 animate-pulse"></div>
+                <div>
+                    <h2 class="text-xl font-bold text-red-700">Busy</h2>
+                    <p class="text-sm text-red-600">Do not disturb me at all</p>
+                </div>
+            </div>
+        </div>
+
+        <p id="feedback" class="text-center mt-8 text-sm text-gray-400 font-medium"></p>
+    </div>
+
+    <script>
+        const serverUrl = 'http://localhost:5000/set_led';
+
+        async function setStatus(status) {
+            // Update UI visuals
+            document.querySelectorAll('.status-card').forEach(card => {
+                card.classList.remove('active-green', 'active-yellow', 'active-red');
+            });
+            
+            const activeMap = { 'available': 'active-green', 'busy-talkable': 'active-yellow', 'dnd': 'active-red' };
+            document.getElementById(`${status}-card`).classList.add(activeMap[status]);
+
+            try {
+                const response = await fetch(serverUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: status })
+                });
+                const data = await response.json();
+                document.getElementById('feedback').textContent = `System updated to: ${status.toUpperCase()}`;
+            } catch (error) {
+                document.getElementById('feedback').textContent = "Error: LED Server not responding";
+                console.error('Error:', error);
+            }
+        }
+    </script>
+</body>
+</html>
