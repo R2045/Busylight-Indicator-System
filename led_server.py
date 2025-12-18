@@ -28,7 +28,7 @@ def set_leds(green, yellow, red):
 
 def led_control_loop():
     global current_led_state
-    led_on = True # For blinking/pulsing logic
+    led_on = True 
     
     while True:
         with lock:
@@ -37,21 +37,25 @@ def led_control_loop():
         if state == "available":
             # Come on in - Solid Green
             set_leds(True, False, False)
-            time.sleep(0.5)
+            time.sleep(0.5) # Efficiency sleep
         
         elif state == "busy-talkable":
-            # Only if necessary - Solid Yellow
-            set_leds(False, True, False)
-            time.sleep(0.5)
+            # Fast/Mid Blink Yellow
+            if led_on:
+                set_leds(False, True, False)
+            else:
+                set_leds(False, False, False)
+            led_on = not led_on
+            time.sleep(0.2) # Fast pace
             
         elif state == "dnd":
-            # Do Not Disturb - Pulsing/Blinking Red
+            # Slow Blink Red
             if led_on:
                 set_leds(False, False, True)
             else:
                 set_leds(False, False, False)
             led_on = not led_on
-            time.sleep(0.4) # Faster cycle for DND to grab attention
+            time.sleep(0.8) # Slow, steady pace
 
 @app.route('/set_led', methods=['POST'])
 def set_led_route():
