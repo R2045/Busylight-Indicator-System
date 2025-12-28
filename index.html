@@ -1,45 +1,152 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Status Sync</title>
+    <title>Status Controller</title>
     <style>
-        body { margin: 0; transition: background-color 0.5s; font-family: sans-serif; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; }
-        .bg-available { background-color: #059669; }
-        .bg-busy-talkable { background-color: #d97706; }
-        .bg-dnd { background-color: #dc2626; }
-        .bg-off { background-color: #334155; }
-        #status-text { font-size: 3rem; font-weight: 900; text-transform: uppercase; margin: 0; }
-        .buttons { position: fixed; bottom: 30px; display: flex; gap: 10px; width: 90%; max-width: 400px; }
-        button { flex: 1; padding: 20px; border-radius: 15px; border: 1px solid white; background: rgba(255,255,255,0.2); color: white; font-weight: bold; }
+        /* CSS STYLES - Built-in so no internet is required */
+        body { 
+            margin: 0; 
+            padding: 0; 
+            transition: background-color 0.5s ease; 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+            color: white; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            min-height: 100vh; 
+            overflow: hidden; 
+        }
+
+        /* Color States */
+        .bg-available { background-color: #059669; }     /* Green */
+        .bg-busy-talkable { background-color: #d97706; } /* Yellow/Orange */
+        .bg-dnd { background-color: #dc2626; }           /* Red */
+        .bg-off { background-color: #334155; }           /* Gray (Offline) */
+        
+        #status-text { 
+            font-size: 3.5rem; 
+            font-weight: 900; 
+            text-transform: uppercase; 
+            margin: 0; 
+            text-align: center; 
+            letter-spacing: -2px; 
+        }
+
+        #sub-text { 
+            font-size: 1.2rem; 
+            opacity: 0.8; 
+            margin-top: 10px; 
+            font-style: italic; 
+        }
+
+        /* Button Styling */
+        .button-container { 
+            position: fixed; 
+            bottom: 40px; 
+            display: flex; 
+            gap: 12px; 
+            width: 90%; 
+            max-width: 450px; 
+        }
+
+        button { 
+            flex: 1; 
+            background: rgba(255,255,255,0.2); 
+            border: 2px solid rgba(255,255,255,0.3); 
+            color: white; 
+            padding: 25px 10px; 
+            border-radius: 20px; 
+            font-weight: bold; 
+            cursor: pointer; 
+            text-transform: uppercase; 
+            font-size: 0.75rem; 
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        button:active { 
+            background: rgba(255,255,255,0.4); 
+            transform: scale(0.95); 
+        }
+
+        /* Animations */
+        .blink { animation: pulse 1s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
     </style>
 </head>
 <body id="main-bg" class="bg-off">
+
     <h1 id="status-text">OFFLINE</h1>
-    <div class="buttons">
-        <button onclick="set('available')">Green</button>
-        <button onclick="set('busy-talkable')">Yellow</button>
-        <button onclick="set('dnd')">Red</button>
+    <p id="sub-text">Connecting to 192.168.137.1...</p>
+
+    <div class="button-container">
+        <button onclick="setStatus('available')">Available</button>
+        <button onclick="setStatus('busy-talkable')">Busy</button>
+        <button onclick="setStatus('dnd')">DND</button>
     </div>
+
     <script>
-        const IP = "http://10.0.0.151:8080";
-        async function set(s) {
-            await fetch(`${IP}/set_led`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({status: s})
-            });
+        // CONFIGURATION: Using your Hotspot IP
+        const SERVER_URL = "http://192.168.137.1:8080";
+
+        // Send a new status to the server
+        async function setStatus(val) {
+            try {
+                const response = await fetch(`${SERVER_URL}/set_led`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({status: val})
+                });
+                if (!response.ok) throw new Error('Network response was not ok');
+            } catch(e) {
+                console.error("Error updating status:", e);
+                alert("Cannot reach server. Check PC hotspot connection.");
+            }
         }
+
+        // Keep the UI in sync with the server
         async function sync() {
             try {
-                const r = await fetch(`${IP}/get_status`);
-                const d = await r.json();
-                document.getElementById('main-bg').className = `bg-${d.state}`;
-                document.getElementById('status-text').innerText = d.state.replace('-', ' ');
-            } catch(e) { document.getElementById('status-text').innerText = "OFFLINE"; }
+                const res = await fetch(`${SERVER_URL}/get_status`);
+                const data = await res.json();
+                
+                const bg = document.getElementById('main-bg');
+                const txt = document.getElementById('status-text');
+                const sub = document.getElementById('sub-text');
+                
+                // Update Background Color
+                bg.className = `bg-${data.state}`;
+                
+                // Update Text
+                txt.innerText = data.state.replace('-', ' ');
+                
+                if(data.state === 'available') { 
+                    sub.innerText = "Come on in!"; 
+                    txt.classList.remove('blink'); 
+                }
+                else if(data.state === 'busy-talkable') { 
+                    sub.innerText = "Only if urgent"; 
+                    txt.classList.add('blink'); 
+                }
+                else if(data.state === 'dnd') { 
+                    sub.innerText = "Do not disturb"; 
+                    txt.classList.add('blink'); 
+                }
+            } catch(e) { 
+                // Error State
+                document.getElementById('status-text').innerText = "OFFLINE";
+                document.getElementById('main-bg').className = "bg-off";
+                document.getElementById('sub-text').innerText = "Check PC Server (192.168.137.1)";
+            }
         }
+
+        // Run sync every second
         setInterval(sync, 1000);
+        // Run immediately on load
+        sync();
     </script>
 </body>
 </html>
