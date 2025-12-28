@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Status Sync</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { transition: background-color 0.6s ease; overflow: hidden; touch-action: manipulation; }
+        
+        /* State Colors */
+        .bg-available { background-color: #059669; } /* Solid Green */
+        .bg-busy-talkable { background-color: #d97706; } /* Amber */
+        .bg-dnd { background-color: #dc2626; } /* Red */
+        .bg-off { background-color: #1f2937; } /* Gray/Off */
+
+        /* Animation Speeds */
+        .blink-fast { animation: blink 0.4s infinite; }
+        .blink-slow { animation: blink 1.6s infinite; }
+        @keyframes blink { 
+            0%, 100% { opacity: 1; } 
+            50% { opacity: 0.2; } 
+        }
+
+        .glass { background: rgba(0, 0, 0, 0.25); backdrop-filter: blur(12px); border-top: 1px solid rgba(255,255,255,0.1); }
+    </style>
+</head>
+<body id="main-bg" class="min-h-screen flex flex-col bg-available">
+
+    <div class="flex-grow flex flex-col items-center justify-center text-white p-10 text-center">
+        <div id="blink-wrapper" class="flex flex-col items-center">
+            <h1 id="main-text" class="text-6xl font-black uppercase tracking-tighter italic">Available</h1>
+            <p id="sub-text" class="text-xl font-medium opacity-80 mt-2">Come on in!</p>
+        </div>
+    </div>
+
+    <div class="glass p-6 pb-10 rounded-t-[3rem]">
+        <div class="max-w-md mx-auto grid grid-cols-3 gap-3">
+            <button onclick="sendUpdate('available')" class="bg-white/10 hover:bg-white/20 text-white py-4 rounded-2xl font-bold text-xs uppercase">Available</button>
+            <button onclick="sendUpdate('busy-talkable')" class="bg-white/10 hover:bg-white/20 text-white py-4 rounded-2xl font-bold text-xs uppercase">Busy</button>
+            <button onclick="sendUpdate('dnd')" class="bg-white/10 hover:bg-white/20 text-white py-4 rounded-2xl font-bold text-xs uppercase">DND</button>
+        </div>
+    </div>
+
+    <script>
+        const SERVER_IP = "localhost"; // Change to your Computer's IP (e.g. 192.168.1.5) to use on phones
+        const bg = document.getElementById('main-bg');
+        const mainText = document.getElementById('main-text');
+        const subText = document.getElementById('sub-text');
+        const wrapper = document.getElementById('blink-wrapper');
+
+        async function sendUpdate(state) {
+            try {
+                await fetch(`http://${SERVER_IP}:5000/set_led`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({status: state})
+                });
+            } catch(e) { console.error("Server connection lost"); }
+        }
+
+        async function pollStatus() {
+            try {
+                const response = await fetch(`http://${SERVER_IP}:5000/get_status`);
+                const data = await response.json();
+                updateDisplay(data.state);
+            } catch(e) { 
+                mainText.innerText = "OFFLINE";
+                subText.innerText = "Check Server";
+            }
+        }
+
+        function updateDisplay(state) {
+            // Reset animations
+            wrapper.classList.remove('blink-fast', 'blink-slow');
+            
+            // Set Color and Text
+            bg.className = `min-h-screen flex flex-col bg-${state}`;
+            
+            if (state === 'available') {
+                mainText.innerText = "Available";
+                subText.innerText = "Come on in!";
+            } else if (state === 'busy-talkable') {
+                mainText.innerText = "Busy";
+                subText.innerText = "Only if urgent";
+                wrapper.classList.add('blink-fast');
+            } else if (state === 'dnd') {
+                mainText.innerText = "DND";
+                subText.innerText = "Do not disturb";
+                wrapper.classList.add('blink-slow');
+            } else {
+                mainText.innerText = "OFF";
+                subText.innerText = "System Idle";
+            }
+        }
+
+        // Sync every 800ms
+        setInterval(pollStatus, 800);
+    </script>
+</body>
+</html>
