@@ -3,51 +3,52 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Status Sync</title>
+    <title>Status Sync Hub</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { transition: background-color 0.6s ease; overflow: hidden; touch-action: manipulation; }
-        
-        /* State Colors */
-        .bg-available { background-color: #059669; } /* Solid Green */
-        .bg-busy-talkable { background-color: #d97706; } /* Amber */
-        .bg-dnd { background-color: #dc2626; } /* Red */
-        .bg-off { background-color: #1f2937; } /* Gray/Off */
+        body { transition: background-color 0.8s ease; overflow: hidden; }
+        .bg-available { background-color: #059669; } 
+        .bg-busy-talkable { background-color: #d97706; } 
+        .bg-dnd { background-color: #dc2626; } 
+        .bg-off { background-color: #1f2937; }
 
-        /* Animation Speeds */
         .blink-fast { animation: blink 0.4s infinite; }
         .blink-slow { animation: blink 1.6s infinite; }
-        @keyframes blink { 
-            0%, 100% { opacity: 1; } 
-            50% { opacity: 0.2; } 
-        }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.15; } }
 
-        .glass { background: rgba(0, 0, 0, 0.25); backdrop-filter: blur(12px); border-top: 1px solid rgba(255,255,255,0.1); }
+        .ui-panel { background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(15px); }
     </style>
 </head>
 <body id="main-bg" class="min-h-screen flex flex-col bg-available">
 
-    <div class="flex-grow flex flex-col items-center justify-center text-white p-10 text-center">
-        <div id="blink-wrapper" class="flex flex-col items-center">
-            <h1 id="main-text" class="text-6xl font-black uppercase tracking-tighter italic">Available</h1>
-            <p id="sub-text" class="text-xl font-medium opacity-80 mt-2">Come on in!</p>
+    <div class="flex-grow flex flex-col items-center justify-center text-white p-10 text-center select-none" onclick="toggleUI()">
+        <div id="blink-wrapper">
+            <h1 id="main-text" class="text-7xl font-black uppercase tracking-tighter italic">Available</h1>
+            <p id="sub-text" class="text-2xl font-medium opacity-80 mt-2">Come on in!</p>
         </div>
+        <p id="tap-hint" class="text-xs opacity-30 mt-8 uppercase tracking-widest">Tap screen to hide/show controls</p>
     </div>
 
-    <div class="glass p-6 pb-10 rounded-t-[3rem]">
-        <div class="max-w-md mx-auto grid grid-cols-3 gap-3">
-            <button onclick="sendUpdate('available')" class="bg-white/10 hover:bg-white/20 text-white py-4 rounded-2xl font-bold text-xs uppercase">Available</button>
-            <button onclick="sendUpdate('busy-talkable')" class="bg-white/10 hover:bg-white/20 text-white py-4 rounded-2xl font-bold text-xs uppercase">Busy</button>
-            <button onclick="sendUpdate('dnd')" class="bg-white/10 hover:bg-white/20 text-white py-4 rounded-2xl font-bold text-xs uppercase">DND</button>
+    <div id="controls" class="ui-panel p-8 pb-12 rounded-t-[3rem] transition-transform duration-500 translate-y-0">
+        <div class="max-w-md mx-auto space-y-4">
+            <div class="grid grid-cols-3 gap-3">
+                <button onclick="sendUpdate('available')" class="bg-white/10 hover:bg-white/20 text-white py-5 rounded-2xl font-bold text-xs uppercase border border-white/5">Available</button>
+                <button onclick="sendUpdate('busy-talkable')" class="bg-white/10 hover:bg-white/20 text-white py-5 rounded-2xl font-bold text-xs uppercase border border-white/5">Busy</button>
+                <button onclick="sendUpdate('dnd')" class="bg-white/10 hover:bg-white/20 text-white py-5 rounded-2xl font-bold text-xs uppercase border border-white/5">DND</button>
+            </div>
+            <button onclick="toggleFullScreen()" class="w-full py-3 rounded-xl bg-white/5 text-white/50 text-[10px] uppercase font-bold tracking-widest">Enter Full Screen Mode</button>
         </div>
     </div>
 
     <script>
-        const SERVER_IP = "localhost"; // Change to your Computer's IP (e.g. 192.168.1.5) to use on phones
+        // --- 1. SET YOUR IP HERE ---
+        const SERVER_IP = "10.0.0.1510"; 
+
         const bg = document.getElementById('main-bg');
         const mainText = document.getElementById('main-text');
         const subText = document.getElementById('sub-text');
         const wrapper = document.getElementById('blink-wrapper');
+        const controls = document.getElementById('controls');
 
         async function sendUpdate(state) {
             try {
@@ -56,7 +57,7 @@
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({status: state})
                 });
-            } catch(e) { console.error("Server connection lost"); }
+            } catch(e) { console.error("Update failed"); }
         }
 
         async function pollStatus() {
@@ -66,15 +67,12 @@
                 updateDisplay(data.state);
             } catch(e) { 
                 mainText.innerText = "OFFLINE";
-                subText.innerText = "Check Server";
+                subText.innerText = "Check Python Server";
             }
         }
 
         function updateDisplay(state) {
-            // Reset animations
             wrapper.classList.remove('blink-fast', 'blink-slow');
-            
-            // Set Color and Text
             bg.className = `min-h-screen flex flex-col bg-${state}`;
             
             if (state === 'available') {
@@ -88,14 +86,22 @@
                 mainText.innerText = "DND";
                 subText.innerText = "Do not disturb";
                 wrapper.classList.add('blink-slow');
-            } else {
-                mainText.innerText = "OFF";
-                subText.innerText = "System Idle";
             }
         }
 
-        // Sync every 800ms
-        setInterval(pollStatus, 800);
+        function toggleUI() {
+            controls.classList.toggle('translate-y-full');
+        }
+
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        setInterval(pollStatus, 1000);
     </script>
 </body>
 </html>
