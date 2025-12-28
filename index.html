@@ -12,37 +12,44 @@
         .bg-dnd { background-color: #dc2626; } 
         .bg-off { background-color: #1f2937; }
 
+        /* Animation Speeds */
         .blink-fast { animation: blink 0.4s infinite; }
         .blink-slow { animation: blink 1.6s infinite; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.15; } }
 
-        .ui-panel { background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(15px); }
+        .ui-panel { background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(15px); border-top: 1px solid rgba(255,255,255,0.1); }
+        .hidden-ui { transform: translateY(100%); }
     </style>
 </head>
-<body id="main-bg" class="min-h-screen flex flex-col bg-available">
+<body id="main-bg" class="min-h-screen flex flex-col bg-off">
 
     <div class="flex-grow flex flex-col items-center justify-center text-white p-10 text-center select-none" onclick="toggleUI()">
         <div id="blink-wrapper">
-            <h1 id="main-text" class="text-7xl font-black uppercase tracking-tighter italic">Available</h1>
-            <p id="sub-text" class="text-2xl font-medium opacity-80 mt-2">Come on in!</p>
+            <h1 id="main-text" class="text-6xl md:text-8xl font-black uppercase tracking-tighter italic text-shadow-lg">Connecting...</h1>
+            <p id="sub-text" class="text-xl md:text-2xl font-medium opacity-80 mt-2">Check Server: 10.0.0.151</p>
         </div>
-        <p id="tap-hint" class="text-xs opacity-30 mt-8 uppercase tracking-widest">Tap screen to hide/show controls</p>
+        <p id="hint" class="text-[10px] opacity-30 mt-12 uppercase tracking-widest">Tap screen to show/hide buttons</p>
     </div>
 
-    <div id="controls" class="ui-panel p-8 pb-12 rounded-t-[3rem] transition-transform duration-500 translate-y-0">
-        <div class="max-w-md mx-auto space-y-4">
+    <div id="controls" class="ui-panel p-8 pb-12 fixed bottom-0 left-0 right-0 transition-transform duration-500 ease-in-out">
+        <div class="max-w-md mx-auto space-y-6">
             <div class="grid grid-cols-3 gap-3">
-                <button onclick="sendUpdate('available')" class="bg-white/10 hover:bg-white/20 text-white py-5 rounded-2xl font-bold text-xs uppercase border border-white/5">Available</button>
-                <button onclick="sendUpdate('busy-talkable')" class="bg-white/10 hover:bg-white/20 text-white py-5 rounded-2xl font-bold text-xs uppercase border border-white/5">Busy</button>
-                <button onclick="sendUpdate('dnd')" class="bg-white/10 hover:bg-white/20 text-white py-5 rounded-2xl font-bold text-xs uppercase border border-white/5">DND</button>
+                <button onclick="sendUpdate('available')" class="bg-emerald-600 active:bg-emerald-700 text-white py-6 rounded-2xl font-bold text-xs uppercase shadow-xl border border-emerald-400/30">Available</button>
+                <button onclick="sendUpdate('busy-talkable')" class="bg-amber-600 active:bg-amber-700 text-white py-6 rounded-2xl font-bold text-xs uppercase shadow-xl border border-amber-400/30">Busy</button>
+                <button onclick="sendUpdate('dnd')" class="bg-red-700 active:bg-red-800 text-white py-6 rounded-2xl font-bold text-xs uppercase shadow-xl border border-red-400/30">DND</button>
             </div>
-            <button onclick="toggleFullScreen()" class="w-full py-3 rounded-xl bg-white/5 text-white/50 text-[10px] uppercase font-bold tracking-widest">Enter Full Screen Mode</button>
+            
+            <div class="flex flex-col items-center gap-2">
+                <button onclick="toggleFullScreen()" class="text-white/40 text-[10px] uppercase font-bold tracking-widest hover:text-white/70 transition-colors">Toggle Full Screen</button>
+                <div class="text-[9px] font-mono text-white/20">Target: 10.0.0.151:5000</div>
+            </div>
         </div>
     </div>
 
     <script>
-        // --- 1. SET YOUR IP HERE ---
-        const SERVER_IP = 10.0.0.1510; 
+        // --- CONFIGURATION ---
+        const SERVER_IP = "10.0.0.151"; 
+        // ---------------------
 
         const bg = document.getElementById('main-bg');
         const mainText = document.getElementById('main-text');
@@ -50,6 +57,7 @@
         const wrapper = document.getElementById('blink-wrapper');
         const controls = document.getElementById('controls');
 
+        // Function to CHANGE the status
         async function sendUpdate(state) {
             try {
                 await fetch(`http://${SERVER_IP}:5000/set_led`, {
@@ -57,17 +65,21 @@
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({status: state})
                 });
-            } catch(e) { console.error("Update failed"); }
+            } catch(e) {
+                alert("Cannot reach server at " + SERVER_IP);
+            }
         }
 
+        // Function to SYNC with the server every second
         async function pollStatus() {
             try {
-                const response = await fetch(`http://${SERVER_IP}:5000/get_status`);
+                const response = await fetch(`http://${SERVER_IP}:5000/get_status`, { signal: AbortSignal.timeout(2000) });
                 const data = await response.json();
                 updateDisplay(data.state);
             } catch(e) { 
                 mainText.innerText = "OFFLINE";
-                subText.innerText = "Check Python Server";
+                subText.innerText = "Check Python Server on 10.0.0.151";
+                bg.className = "min-h-screen flex flex-col bg-off";
             }
         }
 
@@ -90,7 +102,7 @@
         }
 
         function toggleUI() {
-            controls.classList.toggle('translate-y-full');
+            controls.classList.toggle('hidden-ui');
         }
 
         function toggleFullScreen() {
@@ -101,7 +113,9 @@
             }
         }
 
+        // Check for updates from the server every 1 second
         setInterval(pollStatus, 1000);
+        pollStatus(); // Initial check
     </script>
 </body>
 </html>
