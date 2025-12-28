@@ -1,30 +1,37 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Status Sync</title>
-    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { transition: background-color 0.5s ease; color: white; font-family: sans-serif; }
+        /* This CSS is built-in so it works even if the internet is spotty */
+        body { margin: 0; padding: 0; transition: background-color 0.5s; font-family: sans-serif; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; overflow: hidden; }
         .bg-available { background-color: #059669; }
         .bg-busy-talkable { background-color: #d97706; }
         .bg-dnd { background-color: #dc2626; }
+        .bg-off { background-color: #334155; }
+        
+        #status-text { font-size: 3rem; font-weight: 900; text-transform: uppercase; margin: 0; text-align: center; }
+        #sub-text { font-size: 1.2rem; opacity: 0.8; margin-top: 10px; }
+
+        .button-container { position: fixed; bottom: 40px; display: grid; grid-template-cols: 1fr 1fr 1fr; gap: 10px; width: 90%; max-width: 400px; }
+        button { background: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.3); color: white; padding: 20px 10px; border-radius: 15px; font-weight: bold; cursor: pointer; text-transform: uppercase; font-size: 0.7rem; }
+        button:active { background: rgba(255,255,255,0.4); }
+
         .blink { animation: pulse 1s infinite; }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
     </style>
 </head>
-<body id="main-bg" class="min-h-screen flex flex-col items-center justify-center">
+<body id="main-bg" class="bg-off">
 
-    <div class="text-center p-10">
-        <h1 id="status-text" class="text-7xl font-black uppercase italic">Loading...</h1>
-        <p id="sub-text" class="text-xl mt-4 opacity-70 italic">Connecting to 10.0.0.151</p>
-    </div>
+    <h1 id="status-text">OFFLINE</h1>
+    <p id="sub-text">Trying to connect...</p>
 
-    <div class="fixed bottom-10 w-full max-w-md px-6 grid grid-cols-3 gap-4">
-        <button onclick="setStatus('available')" class="bg-white/20 p-4 rounded-xl font-bold border border-white/20">GREEN</button>
-        <button onclick="setStatus('busy-talkable')" class="bg-white/20 p-4 rounded-xl font-bold border border-white/20">YELLOW</button>
-        <button onclick="setStatus('dnd')" class="bg-white/20 p-4 rounded-xl font-bold border border-white/20">RED</button>
+    <div class="button-container" style="display: flex; justify-content: space-around;">
+        <button onclick="setStatus('available')">Available</button>
+        <button onclick="setStatus('busy-talkable')">Busy</button>
+        <button onclick="setStatus('dnd')">DND</button>
     </div>
 
     <script>
@@ -37,7 +44,7 @@
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({status: val})
                 });
-            } catch(e) { console.log("Error sending update"); }
+            } catch(e) { alert("Server Unreachable"); }
         }
 
         async function sync() {
@@ -45,24 +52,24 @@
                 const res = await fetch(`http://${SERVER_IP}:5000/get_status`);
                 const data = await res.json();
                 
-                // Update UI based on what server says
                 const bg = document.getElementById('main-bg');
                 const txt = document.getElementById('status-text');
                 const sub = document.getElementById('sub-text');
                 
-                bg.className = `min-h-screen flex flex-col items-center justify-center bg-${data.state}`;
+                bg.className = `bg-${data.state}`;
                 txt.innerText = data.state.replace('-', ' ');
                 
                 if(data.state === 'available') { sub.innerText = "Come on in!"; txt.classList.remove('blink'); }
-                if(data.state === 'busy-talkable') { sub.innerText = "Only if urgent"; txt.classList.add('blink'); }
-                if(data.state === 'dnd') { sub.innerText = "Do not disturb"; txt.classList.add('blink'); }
-
+                else if(data.state === 'busy-talkable') { sub.innerText = "Only if urgent"; txt.classList.add('blink'); }
+                else if(data.state === 'dnd') { sub.innerText = "Do not disturb"; txt.classList.add('blink'); }
             } catch(e) { 
                 document.getElementById('status-text').innerText = "OFFLINE";
+                document.getElementById('main-bg').className = "bg-off";
             }
         }
 
-        setInterval(sync, 1000); // Check for changes every second
+        setInterval(sync, 1000);
+        sync();
     </script>
 </body>
 </html>
